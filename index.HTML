@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作业登记系统｜管理员版</title>
+<style>
+*{box-sizing:border-box;font-family:"Microsoft Yahei",sans-serif;margin:0;padding:0}
+.container{max-width:1400px;margin:12px auto;padding:16px}
+.card{background:#fff;border:1px solid #ddd;border-radius:8px;padding:18px;margin-bottom:16px}
+h2{margin-bottom:14px;color:#222;font-size:18px}
+.oper-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+button{padding:8px 14px;border:none;border-radius:4px;background:#2b7bdd;color:white;cursor:pointer}
+button.del{background:#dc3545}
+button.gray{background:#868e96}
+input,select,textarea{padding:7px;border:1px solid #bbb;border-radius:4px}
+.student-wrap{max-height:420px;overflow:auto;border:1px solid #ccc;padding:10px}
+.student-row{display:grid;grid-template-columns:140px 130px 1fr;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid #eee}
+.student-name{font-weight:500}
+.query-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{border:1px solid #ccc;padding:8px;text-align:left}
+th{background:#f3f4f6}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{padding:8px 16px;border:1px solid #ccc;cursor:pointer}
+.tab.active{background:#2b7bdd;color:#fff;border-color:#2b7bdd}
+.hide{display:none}
+.info-text{color:#666;margin:8px 0;font-size:14px}
+.login-box{max-width:420px;margin:60px auto}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.no-perm{background:#ffe9e9;padding:10px;color:#c00;border-radius:4px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <h1>作业登记系统</h1>
+        <div id="loginArea"></div>
+    </div>
+    <div id="noLoginTip" class="no-perm">🔒游客模式：仅可查询浏览记录，请管理员登录后进行登记、导入、导出操作</div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="tabRegister">作业登记</div>
+        <div class="tab" data-tab="tabQuery">查询记录</div>
+        <div class="tab" data-tab="tabStudent">学生名单管理</div>
+    </div>
+
+    <!--登录弹窗区域-->
+    <div id="loginModal" class="card hide login-box">
+        <h2>管理员登录</h2>
+        <div class="query-row">
+            <label>账号：</label>
+            <input id="usr" placeholder="输入管理员账号">
+        </div>
+        <div class="query-row">
+            <label>密码：</label>
+            <input id="pwd" type="password" placeholder="输入密码">
+        </div>
+        <div class="oper-bar">
+            <button id="btnLogin">登录</button>
+            <button class="gray" id="btnCloseLogin">关闭</button>
+        </div>
+    </div>
+
+    <div id="tabRegister" class="tab-content">
+        <div class="card">
+            <h2>作业信息公共项</h2>
+            <div class="query-row">
+                <label>作业日期：</label>
+                <input type="date" id="workDate">
+                <label>科目：</label>
+                <select id="subject">
+                    <option value="语文">语文</option>
+                    <option value="数学">数学</option>
+                    <option value="英语">英语</option>
+                    <option value="物理">物理</option>
+                    <option value="化学">化学</option>
+                    <option value="其他">其他</option>
+                </select>
+                <label>作业内容：</label>
+                <textarea id="workContent" placeholder="填写本次作业内容"></textarea>
+            </div>
+            <div class="oper-bar">
+                <button id="btnSaveBatch">批量保存本次作业登记</button>
+                <button class="gray" id="btnClearForm">清空表单</button>
+            </div>
+            <div class="info-text">下面列出全部学生，给每位学生选择完成状态，可填写备注</div>
+            <div class="student-wrap" id="studentListBox"></div>
+        </div>
+    </div>
+
+    <div id="tabQuery" class="tab-content hide">
+        <div class="card">
+            <h2>作业记录查询</h2>
+            <div class="query-row">
+                <label>开始日期</label>
+                <input type="date" id="qStart">
+                <label>结束日期</label>
+                <input type="date" id="qEnd">
+                <label>科目</label>
+                <select id="qSubject"><option value="">全部</option><option>语文</option><option>数学</option><option>英语</option><option>物理</option><option>化学</option><option>其他</option></select>
+                <label>学生姓名</label>
+                <input id="qName" placeholder="输入学生姓名">
+                <label>完成状态</label>
+                <select id="qStatus"><option value="">全部</option><option value="已完成">已完成</option><option value="部分完成">部分完成</option><option value="未完成">未完成</option></select>
+                <button id="btnQuery">查询</button>
+                <button id="btnExportCsv">导出CSV</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>学生姓名</th>
+                            <th>科目</th>
+                            <th>作业内容</th>
+                            <th>完成状态</th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tabStudent" class="tab-content hide">
+        <div class="card">
+            <h2>学生名单更换</h2>
+            <div class="info-text">上传CSV替换学生列表，表头需要【姓名】</div>
+            <div class="oper-bar">
+                <input type="file" id="fileUpload" accept=".csv,.txt">
+                <button id="btnRestoreDemo">恢复内置原始50名学生名单</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>姓名</th>
+                            <th>身份证号码</th>
+                            <th>家长姓名</th>
+                            <th>手机长号</th>
+                            <th>短号</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============配置区：修改这里可以改管理员账号密码============
+const ADMIN_USER = "admin";
+const ADMIN_PWD = "123456";
+let isAdminLogin = false;
+
+const defaultStudentList = [
+{"姓名":"陈纪通","身份证号码":"44122420110203577X","家长姓名":"陈成华","手机长号":"18344518973","短号":"678973"},
+{"姓名":"范金花","身份证号码":"441224201205195768","家长姓名":"范月娇","手机长号":"14718493674","短号":"673674"},
+{"姓名":"黄海怡","身份证号码":"441224201007235845","家长姓名":"黄水创","手机长号":"18718446346","短号":"666346"},
+{"姓名":"黄敏","身份证号码":"441224201203105749","家长姓名":"黄长森","手机长号":"15819327410","短号":"677410"},
+{"姓名":"黄水连","身份证号码":"44122420110912576X","家长姓名":"黄杵金","手机长号":"15986931935","短号":"661935"},
+{"姓名":"黄育梁","身份证号码":"441224201203275713","家长姓名":"黄木弟","手机长号":"13620356341","短号":"616341"},
+{"姓名":"黄韵诗","身份证号码":"441224201205175724","家长姓名":"黄坚明","手机长号":"13690287058","短号":"629899"},
+{"姓名":"黄长飞","身份证号码":"441224201201225755","家长姓名":"黄永恒","手机长号":"13660949763","短号":"699763"},
+{"姓名":"黎海燕","身份证号码":"441224201202165782","家长姓名":"黎伟权","手机长号":"13590662092","短号":""},
+{"姓名":"李焕成","身份证号码":"441224201108275731","家长姓名":"徐雪丽","手机长号":"15016382984","短号":"682984"},
+{"姓名":"李欣婷","身份证号码":"441224201202255809","家长姓名":"李传禄","手机长号":"13556506721","短号":"666721"},
+{"姓名":"梁镓华","身份证号码":"441224201206165755","家长姓名":"梁文相","手机长号":"17607588348","短号":"681929"},
+{"姓名":"廖杰轩","身份证号码":"441224201108305734","家长姓名":"廖忠明","手机长号":"15014456740","短号":"696740"},
+{"姓名":"林健燊","身份证号码":"441224201104245754","家长姓名":"林伟政","手机长号":"13556578526","短号":"628526"},
+{"姓名":"龙雅琴","身份证号码":"441224201109225728","家长姓名":"朱秋立","手机长号":"15016259292","短号":"679586"},
+{"姓名":"莫秀丽","身份证号码":"441224201106115726","家长姓名":"莫石丰","手机长号":"15976603862","短号":""},
+{"姓名":"钱冬玲","身份证号码":"441224201110245726","家长姓名":"钱喜荣","手机长号":"13590843000","短号":"无"},
+{"姓名":"钱嘉欣","身份证号码":"441224201106205801","家长姓名":"钱喜欢","手机长号":"15119845762","短号":""},
+{"姓名":"钱霖平","身份证号码":"441224201111065719","家长姓名":"钱大繁","手机长号":"15016368025","短号":"678025"},
+{"姓名":"钱梦婷","身份证号码":"441224201202225749","家长姓名":"钱喜健","手机长号":"14718367205","短号":"627205"},
+{"姓名":"钱诺熙","身份证号码":"44122420110926572X","家长姓名":"钱喜成","手机长号":"18319361296","短号":"621296"},
+{"姓名":"钱子彬","身份证号码":"441224201203295714","家长姓名":"植洁敏","手机长号":"18718707896","短号":"667896"},
+{"姓名":"阮志亮","身份证号码":"44122420120124573X","家长姓名":"阮汝彬","手机长号":"15218477515","短号":"617515"},
+{"姓名":"王宝怡","身份证号码":"441224201010295769","家长姓名":"王灼溪","手机长号":"13435815915","短号":""},
+{"姓名":"王乃驹","身份证号码":"441224201111055756","家长姓名":"王汕成","手机长号":"15207589800","短号":"661701"},
+{"姓名":"王炎溪","身份证号码":"44122420120228575X","家长姓名":"王泽钦","手机长号":"15113978829","短号":"680267"},
+{"姓名":"谢智豪","身份证号码":"441224201109265711","家长姓名":"谢中锦","手机长号":"13432419262","短号":"669262"},
+{"姓名":"谢智沛","身份证号码":"441224201204135755","家长姓名":"谢中健","手机长号":"13672338466","短号":"668466"},
+{"姓名":"李镇兴","身份证号码":"441224201208135736","家长姓名":"李玉成","手机长号":"13822653719","短号":""},
+{"姓名":"徐嘉琪","身份证号码":"441224201111235749","家长姓名":"徐深山","手机长号":"13427658155","短号":"66199"},
+{"姓名":"徐敏思","身份证号码":"441224201110035745","家长姓名":"徐洪锦","手机长号":"15992317453","短号":"637453"},
+{"姓名":"徐能乐","身份证号码":"441224201110145733","家长姓名":"徐逢长","手机长号":"13660939954","短号":"667139"},
+{"姓名":"徐群成","身份证号码":"441224201111015711","家长姓名":"植亚弟","手机长号":"15992303426","短号":"664810"},
+{"姓名":"徐文武","身份证号码":"441224201206125710","家长姓名":"植丽香","手机长号":"15915048087","短号":"618087"},
+{"姓名":"徐鑫山","身份证号码":"441224201205025718","家长姓名":"徐文全","手机长号":"13556528145","短号":"668145"},
+{"姓名":"徐炫富","身份证号码":"441224201202175710","家长姓名":"吴月爱","手机长号":"15218450679","短号":"668692"},
+{"姓名":"徐雅雯","身份证号码":"441224201110205767","家长姓名":"徐兴结","手机长号":"15813986460","短号":"666460"},
+{"姓名":"植辉展","身份证号码":"441224201208105756","家长姓名":"植中成","手机长号":"18319399635","短号":""},
+{"姓名":"植慧婧","身份证号码":"44122420111208572x","家长姓名":"王雪莹","手机长号":"13580625152","短号":"615152"},
+{"姓名":"植慧欣","身份证号码":"441224201110055746","家长姓名":"植土生","手机长号":"15218460862","短号":"670862"},
+{"姓名":"植慧珍","身份证号码":"441224201103245744","家长姓名":"植中坚","手机长号":"18718702948","短号":"612948"},
+{"姓名":"植火妹","身份证号码":"441224201112155724","家长姓名":"植丙伟","手机长号":"15728857162","短号":"697162"},
+{"姓名":"植玲梅","身份证号码":"441224201202275762","家长姓名":"植中欢","手机长号":"13426999199","短号":"669199"},
+{"姓名":"植奇艺","身份证号码":"44122420110911573X","家长姓名":"植中燕","手机长号":"13527028247","短号":"610085"},
+{"姓名":"植晓涵","身份证号码":"441224201110065768","家长姓名":"植中炎","手机长号":"18688623861","短号":""},
+{"姓名":"植艺科","身份证号码":"441224201106305730","家长姓名":"植亚威","手机长号":"15718324822","短号":""},
+{"姓名":"植育恩","身份证号码":"441224201112025735","家长姓名":"植振兴","手机长号":"13527088314","短号":"690911"},
+{"姓名":"植中权","身份证号码":"441224201208285750","家长姓名":"植威展","手机长号":"13556126233","短号":""},
+{"姓名":"周铭海","身份证号码":"441224201109235715","家长姓名":"周坚","手机长号":"18123535297","短号":""},
+{"姓名":"周世喜","身份证号码":"441224201204185736","家长姓名":"植水英","手机长号":"18316255991","短号":"699551"}
+];
+
+const STU_KEY = "workRegister_studentList";
+const REC_KEY = "workRegister_records";
+let studentList = JSON.parse(localStorage.getItem(STU_KEY)) || [...defaultStudentList];
+let records = JSON.parse(localStorage.getItem(REC_KEY)) || [];
+
+//渲染登录区域
+function renderLoginArea(){
+    const area = document.getElementById("loginArea");
+    const tip = document.getElementById("noLoginTip");
+    if(isAdminLogin){
+        area.innerHTML = `<span>✅管理员已登录</span> <button id="btnLogout">退出登录</button>`;
+        tip.classList.add("hide");
+        setButtonEnable(true);
+    }else{
+        area.innerHTML = `<button id="btnShowLogin">管理员登录</button>`;
+        tip.classList.remove("hide");
+        setButtonEnable(false);
+    }
+}
+function setButtonEnable(enable){
+    document.getElementById("btnSaveBatch").disabled = !enable;
+    document.getElementById("btnRestoreDemo").disabled = !enable;
+    document.getElementById("fileUpload").disabled = !enable;
+    document.getElementById("btnExportCsv").disabled = !enable;
+}
+
+document.getElementById("btnShowLogin")?.addEventListener("click",()=>{
+    document.getElementById("loginModal").classList.remove("hide");
+})
+document.getElementById("btnCloseLogin").onclick=()=>{
+    document.getElementById("loginModal").classList.add("hide");
+}
+document.getElementById("btnLogin").onclick=()=>{
+    const u = document.getElementById("usr").value.trim();
+    const p = document.getElementById("pwd").value.trim();
+    if(u===ADMIN_USER && p===ADMIN_PWD){
+        isAdminLogin = true;
+        alert("登录成功！");
+        document.getElementById("loginModal").classList.add("hide");
+        renderLoginArea();
+    }else{
+        alert("账号密码错误");
+    }
+}
+document.addEventListener("click",e=>{
+    if(e.target.id==="btnLogout"){
+        isAdminLogin=false;
+        renderLoginArea();
+    }
+})
+
+document.querySelectorAll(".tab").forEach(tab=>{
+    tab.onclick=()=>{
+        document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(x=>x.classList.add("hide"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.tab).classList.remove("hide");
+        renderStudentTable();
+    }
+})
+
+function renderRegisterStudent(){
+    const box = document.getElementById("studentListBox");
+    box.innerHTML = "";
+    studentList.forEach((s,idx)=>{
+        const div = document.createElement("div");
+        div.className="student-row";
+        div.innerHTML = `
+            <div class="student-name">${s.姓名}</div>
+            <select data-idx="${idx}" class="sel-status" ${isAdminLogin?"":"disabled"}>
+                <option value="已完成">已完成</option>
+                <option value="部分完成">部分完成</option>
+                <option value="未完成">未完成</option>
+            </select>
+            <input type="text" class="inp-note" data-idx="${idx}" placeholder="备注" ${isAdminLogin?"":"disabled"}>
+        `;
+        box.appendChild(div);
+    })
+}
+
+function renderStudentTable(){
+    const tb = document.getElementById("studentTableBody");
+    tb.innerHTML="";
+    studentList.forEach((s,i)=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${i+1}</td><td>${s.姓名||""}</td><td>${s.身份证号码||""}</td><td>${s.家长姓名||""}</td><td>${s.手机长号||""}</td><td>${s.短号||""}</td>`;
+        tb.appendChild(tr);
+    })
+}
+
+document.getElementById("btnSaveBatch").onclick=()=>{
+    if(!isAdminLogin){alert("需要管理员登录");return;}
+    const workDate = document.getElementById("workDate").value;
+    const subject = document.getElementById("subject").value;
+    const content = document.getElementById("workContent").value.trim();
+    if(!workDate){alert("请填写作业日期");return;}
+    if(!content){alert("请填写作业内容");return;}
+    const statusList = document.querySelectorAll(".sel-status");
+    const noteList = document.querySelectorAll(".inp-note");
+    let newItems = [];
+    for(let i=0;i<studentList.length;i++){
+        newItems.push({
+            date:workDate,
+            studentName:studentList[i].姓名,
+            subject:subject,
+            workContent:content,
+            status:statusList[i].value,
+            note:noteList[i].value.trim(),
+            uid:Date.now()+"_"+i
+        })
+    }
+    records = [...records,...newItems];
+    localStorage.setItem(REC_KEY,JSON.stringify(records));
+    alert(`成功保存${newItems.length}条作业登记记录！`);
+}
+
+document.getElementById("btnClearForm").onclick=()=>{
+    document.getElementById("workDate").value="";
+    document.getElementById("workContent").value="";
+    document.querySelectorAll(".inp-note").forEach(el=>el.value="");
+}
+
+document.getElementById("btnQuery").onclick=()=>{
+    const sStart = document.getElementById("qStart").value;
+    const sEnd = document.getElementById("qEnd").value;
+    const subj = document.getElementById("qSubject").value;
+    const qName = document.getElementById("qName").value.trim();
+    const qSta = document.getElementById("qStatus").value;
+    let res = [...records];
+    if(sStart) res = res.filter(r=>r.date>=sStart);
+    if(sEnd) res = res.filter(r=>r.date<=sEnd);
+    if(subj) res = res.filter(r=>r.subject===subj);
+    if(qName) res = res.filter(r=>r.studentName.includes(qName));
+    if(qSta) res = res.filter(r=>r.status===qSta);
+    const tbody = document.getElementById("resultBody");
+    tbody.innerHTML="";
+    res.forEach(row=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML=`
+            <td>${row.date}</td>
+            <td>${row.studentName}</td>
+            <td>${row.subject}</td>
+            <td>${row.workContent}</td>
+            <td>${row.status}</td>
+            <td>${row.note||""}</td>
+            <td><button class="del" data-uid="${row.uid}" ${isAdminLogin?"":"disabled"}>删除</button></td>
+        `;
+        tbody.appendChild(tr);
+    })
+    tbody.querySelectorAll(".del").forEach(btn=>{
+        btn.onclick=()=>{
+            if(!isAdminLogin){alert("管理员登录才可删除");return;}
+            const uid = btn.dataset.uid;
+            if(confirm("确定删除这条记录？")){
+                records = records.filter(r=>r.uid!==uid);
+                localStorage.setItem(REC_KEY,JSON.stringify(records));
+                document.getElementById("btnQuery").click();
+            }
+        }
+    })
+}
+
+document.getElementById("btnExportCsv").onclick=()=>{
+    if(!isAdminLogin){alert("管理员登录才可导出");return;}
+    if(!records.length){alert("暂无记录");return;}
+    const header = ["日期","学生姓名","科目","作业内容","完成状态","备注"];
+    const lines = [header.join(",")];
+    records.forEach(r=>{
+        const line = [r.date,r.studentName,r.subject,r.workContent,r.status,r.note||""].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",");
+        lines.push(line);
+    })
+    const blob = new Blob(["\uFEFF"+lines.join("\n")], {type:"text/csv;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "作业登记记录.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+document.getElementById("fileUpload").onchange=function(e){
+    if(!isAdminLogin){alert("管理员登录才可导入名单");return;}
+    const f = e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload=ev=>{
+        const text = ev.target.result;
+        const rows = text.split(/\r?\n/).filter(r=>r.trim());
+        if(rows.length<2){alert("文件为空");return;}
+        const heads = rows[0].split(",").map(h=>h.trim());
+        const nameIdx = heads.findIndex(x=>x==="姓名");
+        if(nameIdx===-1){alert("CSV表头必须包含【姓名】！");return;}
+        const arr = [];
+        for(let i=1;i<rows.length;i++){
+            const cols = rows[i].split(",");
+            const obj = {};
+            heads.forEach((h,hi)=>obj[h]=cols[hi]?.trim()||"");
+            if(obj["姓名"]) arr.push(obj);
+        }
+        studentList = arr;
+        localStorage.setItem(STU_KEY,JSON.stringify(studentList));
+        alert(`已导入${arr.length}名学生！`);
+        renderRegisterStudent();
+        renderStudentTable();
+    }
+    reader.readAsText(f,"utf-8");
+}
+
+document.getElementById("btnRestoreDemo").onclick=()=>{
+    if(!isAdminLogin){alert("管理员登录才可恢复名单");return;}
+    if(!confirm("确认恢复内置50名原始学生名单？会覆盖当前学生列表"))return;
+    studentList = [...defaultStudentList];
+    localStorage.setItem(STU_KEY,JSON.stringify(studentList));
+    renderRegisterStudent();
+    renderStudentTable();
+    alert("恢复完成");
+}
+
+(function init(){
+    renderLoginArea();
+    const today = new Date();
+    const tStr = today.toISOString().split('T')[0];
+    document.getElementById("workDate").value = tStr;
+    renderRegisterStudent();
+    renderStudentTable();
+})();
+</script>
+</body>
+</html>
